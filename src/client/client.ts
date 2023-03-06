@@ -1,26 +1,18 @@
-import { AxesHelper, PerspectiveCamera, Scene, Texture, TextureLoader, WebGLRenderer } from 'three'
+import { AxesHelper, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 import { GUI } from 'dat.gui'
 
-import MovingSphere from './models/movingSphere'
+import { loadTexture } from './utils/threeUtils'
+import { remap } from './utils/utils'
+
+import Planet from './models/planet'
 import Sphere from './models/sphere'
-
-const loadTexture = (url: string) => {
-    const loader = new TextureLoader()
-    return new Promise<Texture>((resolve) =>
-        loader.load(url, resolve, undefined, (err) => resolve(new Texture()))
-    )
-}
-
-const remap = (x: number, inMin: number, inMax: number, outMin: number, outMax: number) => {
-    return ((x - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin
-}
 
 const init = async () => {
     const scene = new Scene()
 
-    const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100000)
+    const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 150000)
     camera.position.z = 50000
 
     const renderer = new WebGLRenderer({ alpha: true })
@@ -32,6 +24,7 @@ const init = async () => {
         Realism: 1,
         Radius: 1,
         Distance: 1,
+        Speed: 3600,
     }
 
     const remapDistance = (x: number, index: number, maxDistance: number) =>
@@ -47,55 +40,67 @@ const init = async () => {
     const Sun = new Sphere(await loadTexture(`assets/2k_sun.jpg`), 1391400 / 2)
 
     console.log('Loading Mercury')
-    const Mercury = new MovingSphere(
+    const Mercury = new Planet(
         await loadTexture(`assets/2k_mercury.jpg`),
         4879 / 2,
-        uaToKm(0.39)
+        uaToKm(0.39),
+        3.302e23
     )
 
     console.log('Loading Venus')
-    const Venus = new MovingSphere(
+    const Venus = new Planet(
         await loadTexture(`assets/2k_venus_atmosphere.jpg`),
         12104 / 2,
-        uaToKm(0.72)
+        uaToKm(0.72),
+        4.8685e24
     )
 
     console.log('Loading Earth')
-    const Earth = new MovingSphere(
+    const Earth = new Planet(
         await loadTexture(`assets/2k_earth_daymap.jpg`),
         12756 / 2,
-        uaToKm(1)
+        uaToKm(1),
+        5.9742e24
     )
 
     console.log('Loading Mars')
-    const Mars = new MovingSphere(await loadTexture(`assets/2k_mars.jpg`), 6792 / 2, uaToKm(1.52))
+    const Mars = new Planet(
+        await loadTexture(`assets/2k_mars.jpg`),
+        6792 / 2,
+        uaToKm(1.52),
+        6.4185e23
+    )
 
     console.log('Loading Jupiter')
-    const Jupiter = new MovingSphere(
+    const Jupiter = new Planet(
         await loadTexture(`assets/2k_jupiter.jpg`),
         142984 / 2,
-        uaToKm(5.2)
+        uaToKm(5.2),
+        1.899e27
     )
 
     console.log('Loading Saturn')
-    const Saturn = new MovingSphere(
+    const Saturn = new Planet(
         await loadTexture(`assets/2k_saturn.jpg`),
         120536 / 2,
-        uaToKm(9.54)
+        uaToKm(9.54),
+        5.6846e26
     )
 
     console.log('Loading Uranus')
-    const Uranus = new MovingSphere(
+    const Uranus = new Planet(
         await loadTexture(`assets/2k_uranus.jpg`),
         51118 / 2,
-        uaToKm(19.2)
+        uaToKm(19.2),
+        8.6832e25
     )
 
     console.log('Loading Neptune')
-    const Neptune = new MovingSphere(
+    const Neptune = new Planet(
         await loadTexture(`assets/2k_neptune.jpg`),
         49528 / 2,
-        uaToKm(30.06)
+        uaToKm(30.06),
+        1.0243e26
     )
 
     console.log('Planets Loaded !')
@@ -109,6 +114,15 @@ const init = async () => {
     scene.add(Saturn.mesh)
     scene.add(Uranus.mesh)
     scene.add(Neptune.mesh)
+
+    scene.add(Mercury.ellipse)
+    scene.add(Venus.ellipse)
+    scene.add(Earth.ellipse)
+    scene.add(Mars.ellipse)
+    scene.add(Jupiter.ellipse)
+    scene.add(Saturn.ellipse)
+    scene.add(Uranus.ellipse)
+    scene.add(Neptune.ellipse)
 
     const planets = [Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune]
 
@@ -141,6 +155,7 @@ const init = async () => {
         radiusController.setValue(value)
         distanceController.setValue(value)
     })
+    parametersFolder.add(GUIData, 'Speed', 0)
     parametersFolder.open()
 
     // Handle screen resizing
@@ -155,7 +170,7 @@ const init = async () => {
     let prevTime = 0
 
     function animate(currentTime: number) {
-        const dt = (currentTime - prevTime) / 1000
+        const dt = (GUIData.Speed * (currentTime - prevTime)) / 1000
         prevTime = currentTime
 
         controls.update()
